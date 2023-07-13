@@ -2,6 +2,20 @@
 
 #include <iomanip>
 
+struct VoxelWCoords {
+	Voxel _data;
+	int _x;
+	int _y;
+	int _z;
+};
+struct triangleShape {
+	Eigen::Vector3d _idx1;
+	Eigen::Vector3d _idx2;
+	Eigen::Vector3d _idx3;
+	Vector4uc color;
+
+};
+
 Eigen::Vector3d interpolate(VoxelWCoords v1, VoxelWCoords v2) {
 	double t = (0 - v1._data.tsdf) / (v2._data.tsdf - v1._data.tsdf);
 	Eigen::Vector3d vec1, vec2;
@@ -108,6 +122,8 @@ void MarchingCubes::extractMesh(Volume& volume, std::string fileName) {
 					tri._idx3 = interpolate(points[a2], points[b2]) * voxelScale + volume.getOrigin();
 					faces.push_back(tri);
 				}
+
+
 			}
 		}
 	}

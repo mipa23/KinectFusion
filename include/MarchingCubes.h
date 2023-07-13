@@ -5,6 +5,7 @@
 
 #include "MCTables.h"
 #include "Volume.h"
+#include "SurfaceMeasurement.h"
 
 #include "Eigen.h"
 
@@ -26,26 +27,18 @@ struct MC_Gridcell_2 {
 	Vector3d ev0[8];
 };
 
-struct VoxelWCoords {
-	Voxel _data;
-	int _x;
-	int _y;
-	int _z;
-};
-struct triangleShape {
-	Eigen::Vector3d _idx1;
-	Eigen::Vector3d _idx2;
-	Eigen::Vector3d _idx3;
-	Vector4uc color;
-
-};
-
 class MarchingCubes
 {
 
 public:
+	//Eigen::Vector3d interpolate(double isolevel, const Vector3d& p1, const Vector3d& p2, double f1, double f2);
+
+	int polygonise(MC_Gridcell grid, double isolevel, MC_Triangle* triangles);
+
+	bool processVolumeCell(Volume* vol, int x, int y, int z, double iso, SurfaceMeasurement* mesh);
 
 	static void extractMesh(Volume& volume, std::string fileName);
+
 };
 
 #endif // MARCHING_CUBES_H

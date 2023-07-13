@@ -10,7 +10,7 @@ set(Eigen3_DIR ${LIBRARY_DIR}/Eigen/share/eigen3/cmake CACHE PATH "Path to insta
 set(glog_DIR ${LIBRARY_DIR}/glog-lib/lib/cmake/glog CACHE PATH "Path to installed glog")
 set(Ceres_DIR ${LIBRARY_DIR}/Ceres/CMake CACHE PATH "Path to installed Ceres")
 set(Flann_INCLUDE_DIR ${LIBRARY_DIR}/Flann-1.8.4/ CACHE PATH "Path to Flann source folder")
-#set(OpenCV_INCLUDE_DIRS ${LIBRARY_DIR}/opencv-3.4.14/cmake CACHE PATH "Path to OpenCV source folder")
+set(OpenCV_INCLUDE_DIRS ${LIBRARY_DIR}/opencv-3.4.14/cmake CACHE PATH "Path to OpenCV source folder")
 
 # ------------------------------------------------
 #                 Dependencies
@@ -20,9 +20,7 @@ set(Flann_INCLUDE_DIR ${LIBRARY_DIR}/Flann-1.8.4/ CACHE PATH "Path to Flann sour
 find_package(CUDAToolkit REQUIRED)
 
 # OpenCV
-#find_package(OpenCV REQUIRED)
-SET("OpenCV_DIR" "C:/KinectFusion/Development/Libs/opencv-4.7.0/Build")
-find_package(OpenCV 4.0 REQUIRED)
+find_package(OpenCV REQUIRED)
 if (OpenCV_INCLUDE_DIRS)
     include_directories("${OpenCV_INCLUDE_DIRS}")
     link_directories(${OpenCV_DIR}/lib)
@@ -65,41 +63,30 @@ set(HEADER_FILES
     include/SurfacePrediction.h
     include/Ray.h
     include/SurfaceReconstruction.h
-    include/SurfaceReconstructionCuda.h
-    include/SurfacePredictionCuda.h
-    include/SurfacePoseEstimationCuda.h
-    include/SurfacePredictionCuda.h
+    include/CudaWrapper.h
+    include/icp.h
 )
 
 set(SOURCE_FILES 
     src/FreeImageHelper.cpp
+    src/SurfaceMeasurement.cpp
     src/MarchingCubes.cpp
     src/VirtualSensor.cpp
+    src/Volume.cpp
     src/Mesh.cpp
     src/SurfacePoseEstimation.cpp
     src/SurfacePrediction.cpp
     src/SurfaceReconstruction.cpp
-    src/cuda/SurfaceMeasurement.cu
-    src/cuda/SurfaceReconstructionCuda.cu
-    src/cuda/SurfacePoseEstimationCuda.cu
-    src/cuda/SurfacePredictionCuda.cu
-    src/cuda/SurfaceReconstructionCuda.cu
-    src/cuda/Volume.cu
+    src/icp.cpp
+    src/CudaWrapper.cu
 )
 
 link_directories(${FreeImage_LIBRARY_DIR})
 
 add_executable(KinectFusion src/main.cpp ${HEADER_FILES} ${SOURCE_FILES})
 
-set_target_properties(KinectFusion
-   PROPERTIES
-       CUDA_SEPARABLE_COMPILATION ON
-       CUDA_RESOLVE_DEVICE_SYMBOLS ON
-)
-
-#target_link_libraries(KinectFusion ceres freeimage Eigen3::Eigen CUDA::cudart ${OpenCV_LIBS})
-target_link_libraries(KinectFusion ceres freeimage Eigen3::Eigen ${OpenCV_LIBS})
-target_include_directories(KinectFusion PUBLIC ${EIGEN3_INCLUDE_DIR} ${FreeImage_INCLUDE_DIR} ${Flann_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(KinectFusion ceres freeimage Eigen3::Eigen)
+target_include_directories(KinectFusion PUBLIC ${EIGEN3_INCLUDE_DIR} ${FreeImage_INCLUDE_DIR} ${Flann_INCLUDE_DIR})
 
 # On Windows copy dll to executable folder
 if(WIN32)

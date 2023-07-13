@@ -31,6 +31,7 @@ bool calculatePointOnRay(Eigen::Vector3d& currentPoint,
 
 void SurfacePrediction::surfacePrediction(CameraParametersPyramid cameraParams, std::shared_ptr<SurfaceMeasurement>& currentFrame, std::shared_ptr<Volume>& volume, float truncationDistance, int numLevels)
 {
+    // Variable definitions until the for loop based on ParikaGoel
     //params that i should get from someone else somehow
     auto volumeSize = volume->getVolumeSize();
     auto voxelScale = volume->getVoxelScale();
@@ -47,6 +48,7 @@ void SurfacePrediction::surfacePrediction(CameraParametersPyramid cameraParams, 
     // foreach pixel
     for (auto row = 0; row < height; ++row) {
         for (auto column = 0; column < width; ++column) {
+            //for (auto column = 0; width < 0; ++column) { //TODO: crashes on release whit update
             // ray marching in direction
             auto direction = calculateRayDirection(column, row, rotationMatrix, cameraParams.level(numLevels));
 
@@ -95,10 +97,15 @@ void SurfacePrediction::surfacePrediction(CameraParametersPyramid cameraParams, 
 
                     currentFrame->setGlobalVertexMap(globalVertex, column, row, cameraParams.level(numLevels));
                     currentFrame->setColor(color, column, row, cameraParams.level(numLevels));
+
                 }
+
             }
+
         }
+
     }
+
 
     currentFrame->computeGlobalNormalMap(cameraParams.level(numLevels));
 }
@@ -109,10 +116,11 @@ bool  SurfacePrediction::isInBounds(const Eigen::Vector3d& gridVertex, Eigen::Ve
         gridVertex.z() - 1 < 1 || gridVertex.z() + 1 >= volumeSize.z() - 1);
 }
 
+
 Eigen::Vector3d SurfacePrediction::calculateRayDirection(size_t x, size_t y, const Eigen::Matrix3d& rotation, CameraParametersPyramid cameraParams) {
 
 
-    Eigen::Vector3d rayDirection = rotation * Eigen::Vector3d((x - cameraParams.cX) / cameraParams.fovX, (y - cameraParams.cY) / cameraParams.fovY, 1.0);
+    Eigen::Vector3d rayDirection = rotation * Eigen::Vector3d((x - cameraParams.cX) / cameraParams.fovX, (y - cameraParams.cY) / cameraParams.cY, 1.0);
 
     rayDirection.normalize();
     return rayDirection;
@@ -125,6 +133,7 @@ Eigen::Vector3d SurfacePrediction::getVertexAtZeroCrossing(
 {
     return (prevPoint * (-currTSDF) + currPoint * prevTSDF) / (prevTSDF - currTSDF);
 }
+
 
 double SurfacePrediction::TSDFInterpolation(const Eigen::Vector3d& gridVertex,
     const std::shared_ptr<Volume>& volume) {
@@ -156,6 +165,7 @@ double SurfacePrediction::TSDFInterpolation(const Eigen::Vector3d& gridVertex,
     }
 
     return accum;
+
 }
 
 
@@ -198,5 +208,7 @@ Eigen::Vector3d SurfacePrediction::calculateNormal(const Eigen::Vector3d& gridVe
     normal.z() = (tsdf_z1 - tsdf_z2);
     if (tsdf_z1 == MINF || tsdf_z2 == MINF) return Eigen::Vector3d(MINF, MINF, MINF);
 
+
     return normal;
+
 }

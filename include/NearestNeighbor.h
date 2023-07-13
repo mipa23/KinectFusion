@@ -33,6 +33,7 @@ public:
 	}
 
 	void buildIndex(const vector<Eigen::Vector3d>& targetPoints) {
+		// FLANN requires that all the points be flat. Therefore we copy the points to a separate flat array.
 		m_flatPoints = new float[targetPoints.size() * 3];
 		for (size_t pointIndex = 0; pointIndex < targetPoints.size(); pointIndex++) {
 			for (size_t dim = 0; dim < 3; dim++) {
@@ -42,6 +43,7 @@ public:
 
 		flann::Matrix<float> dataset(m_flatPoints, targetPoints.size(), 3);
 
+		// Building the index takes some time.
 		m_index = new flann::Index<flann::L2<float>>(dataset, flann::KDTreeIndexParams(1));
 		//m_index = new flann::Index<flann::L2<float>>(dataset, flann::KDTreeCuda3dIndexParams());
 		m_index->buildIndex();
@@ -55,6 +57,7 @@ public:
 			return {};
 		}
 
+		// FLANN requires that all the points be flat. Therefore we copy the points to a separate flat array.
 		float* queryPoints = new float[transformedPoints.size() * 3];
 		for (size_t pointIndex = 0; pointIndex < transformedPoints.size(); pointIndex++) {
 			for (size_t dim = 0; dim < 3; dim++) {
@@ -66,10 +69,12 @@ public:
 		flann::Matrix<int> indices(new int[query.rows * 1], query.rows, 1);
 		flann::Matrix<float> distances(new float[query.rows * 1], query.rows, 1);
 
+		// Do a knn search, searching for 1 nearest point and using 16 checks.
 		flann::SearchParams searchParams{ 16 };
 		searchParams.cores = 0;
 		m_index->knnSearch(query, indices, distances, 1, searchParams);
 
+		// Filter the matches.
 		const unsigned nMatches = transformedPoints.size();
 		vector<Match> matches;
 		matches.reserve(nMatches);
@@ -81,6 +86,7 @@ public:
 				matches.push_back(Match{ -1, 0.f });
 		}
 
+		// Release the memory.
 		delete[] query.ptr();
 		delete[] indices.ptr();
 		delete[] distances.ptr();

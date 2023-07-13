@@ -12,10 +12,8 @@
 #include "NearestNeighbor.h"
 #include "Mesh.h"
 #include "SurfaceMeasurement.h"
-#include "SurfacePoseEstimationCuda.h"
+#include "CudaWrapper.h"
 #include "iterator"
-
-#define USE_CUDA_SURFACE_POSE_ESTIMATION 0
 
 using namespace std;
 using namespace Eigen;

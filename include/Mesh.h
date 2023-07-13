@@ -75,10 +75,11 @@ public:
 
     static bool writeSurfaceMesh(Mesh mesh, const std::string& filename);
 	static bool writeMarchingCubes(std::string filename, Volume& v);
-    static bool writeNormalMap(const std::shared_ptr<SurfaceMeasurement>& frame, const std::string& filename);
     static bool writeFileTSDF(std::string filename, Volume& v, int step_size = 1, double threshold = 1, std::string borderColor = "0 255 0");
     static bool writeMeshToFile(std::string filename, const std::shared_ptr<SurfaceMeasurement>& frame, bool includeCameraPose);
+    static bool toFileColors(std::string filename, Volume& v, int step_size = 1, double threshold = 1, std::string borderColor = "0 255 0");
 	static Mesh joinMeshes(const Mesh& mesh1, const Mesh& mesh2, Matrix4d pose1to2 = Matrix4d::Identity());
+    static bool toFile(std::string filename, const std::shared_ptr<SurfaceMeasurement>& frame, float scale = 0.001f);
 	static Mesh camera(const Matrix4d& cameraPose, float scale = 1.f, Vector4uc color = { 255, 0, 0, 255 });
 
 	void clear() {

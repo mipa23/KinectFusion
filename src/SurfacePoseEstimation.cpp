@@ -67,11 +67,8 @@ bool SurfacePoseEstimation::EstimateTransform(std::shared_ptr<SurfaceMeasurement
 
         
         Solver::Options options;
-#if USE_CUDA_SURFACE_POSE_ESTIMATION
-        options.dense_linear_algebra_library_type = CUDA;
-#else
         options.linear_solver_type = ceres::DENSE_QR;
-#endif
+        //options.dense_linear_algebra_library_type = CUDA;
         options.num_threads = 8; // 8 threads is max
         options.max_num_iterations = 1;
         options.minimizer_progress_to_stdout = m_logCeresOptimizerStep;

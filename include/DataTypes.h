@@ -20,23 +20,21 @@ struct Config {
 public:
 	Config(const double dist_threshold, const double normal_threshold, const double truncationDistance,
 		const Eigen::Vector3d volumeOrigin, const int x, const int y, const int z, const double voxelScale, 
-		float depthCutoff, const int numLevels = 0)
+		const int numLevels = 0)
 		:
 		m_dist_threshold(dist_threshold)
 		, m_normal_threshold(normal_threshold)
 		, m_truncationDistance(truncationDistance)
 		, m_voxelScale(voxelScale)
 		, m_volumeSize(x, y, z)
-		, m_num_levels(numLevels)
-		, m_depth_cutoff(depthCutoff)
+		, m_numLevels(numLevels)
 		, m_volumeOrigin(volumeOrigin) {};
 
 	const double m_dist_threshold;
 	const double m_normal_threshold;
 	const double m_truncationDistance;
 	const double m_voxelScale;
-	const int m_num_levels;
-	const float m_depth_cutoff;
+	const int m_numLevels;
 	Eigen::Vector3i m_volumeSize;
 	const Eigen::Vector3d m_volumeOrigin;
 

@@ -138,41 +138,6 @@ bool Mesh::writeFileTSDF(std::string filename, Volume& v, int step_size, double 
 	return true;
 }
 
-bool Mesh::writeNormalMap(const std::shared_ptr<SurfaceMeasurement>& frame, const std::string& filename) {
-
-	auto global_points = frame->getGlobalVertexMap();
-	auto normal_map = frame->getGlobalNormalMap();
-
-	std::cout << "Writing " << filename << std::endl;
-
-	// Write off file.
-	std::string filenameBaseOut = std::string("../result/mesh_");
-	std::ofstream outFile(filenameBaseOut + filename + ".off");
-	if (!outFile.is_open()) return false;
-
-	outFile << "COFF" << std::endl;
-	outFile << normal_map.size() << " " << "0" << " 0" << std::endl;
-
-	for (size_t i = 0; i < normal_map.size(); i++) {
-		const auto& vertex = global_points[i];
-		const Vector3d& normal = 255 * (0.5 * normal_map[i] + Vector3d(0.5, 0.5, 0.5));
-
-		if (vertex.allFinite() && normal.allFinite())
-		{
-			outFile << vertex.x() << " " << vertex.y() << " " << vertex.z() << " "
-				<< int(normal.x()) << " " << int(normal.y()) << " " << int(normal.z()) << " " << " " << std::endl;
-		}
-		else {
-			outFile << "0.0 0.0 0.0 0 0 0 0" << std::endl;
-		}
-	}
-
-	// Close file.
-	outFile.close();
-
-	return true;
-}
-
 bool Mesh::writeMeshToFile(std::string filename, const std::shared_ptr<SurfaceMeasurement>& frame, bool includeCameraPose)
 {
 	auto global_points = frame->getGlobalVertexMap();
@@ -203,6 +168,62 @@ bool Mesh::writeMeshToFile(std::string filename, const std::shared_ptr<SurfaceMe
 		writeSurfaceMesh(sceneMesh, filename);
 	}
 
+	return true;
+}
+
+bool Mesh::toFileColors(std::string filename, Volume& v, int step_size, double threshold, std::string borderColor) {
+
+	std::cout << "Writing " << filename << std::endl;
+
+	std::string filenameBaseOut = std::string("../result/mesh_");
+
+	// Write off file.
+	std::ofstream outFile(filenameBaseOut + filename + ".off");
+	if (!outFile.is_open()) {
+		return false;
+	}
+	auto volumeSize = v.getVolumeSize();
+	// Save vertices.
+	std::vector<Voxel> voxels;
+	std::vector<std::string> colors;
+
+	Eigen::Vector3d red(255, 0, 0);
+	Eigen::Vector3d blue(0, 0, 255);
+
+	int idx = 0;
+	for (int z = 0; z < volumeSize.z(); z += step_size) {
+		for (int y = 0; y < volumeSize.y(); y += step_size) {
+			for (int x = 0; x < volumeSize.x(); x += step_size) {
+				auto voxel = v.getVoxelData()[x + y * volumeSize.x() + z * volumeSize.x() * volumeSize.y()];
+				if (voxel.weight == 0. || std::abs(voxel.tsdf) >= threshold) {
+					continue;
+				}
+				voxels.push_back(Voxel(v.getOrigin().x() + x * v.getVoxelScale(), v.getOrigin().y() + y * v.getVoxelScale
+				(), v.getOrigin().z() + z * v.getVoxelScale(), v.getVoxelScale() * step_size, idx));
+
+				// max value for TSDF 1, min value -1
+				Vector4uc col = voxel.color;
+				std::stringstream s;
+				s << (int)col[0] << " " << (int)col[1] << " " << (int)col[2] << " " << (int)col[3];
+				colors.push_back(s.str());
+				idx += 8;
+			}
+		}
+	}
+
+	// Write header.
+	outFile << "COFF" << std::endl;
+	outFile << voxels.size() * 8 << " " << voxels.size() * 6 << " 0" << std::endl;
+
+	for (size_t i = 0; i < voxels.size(); i++) {
+		outFile << voxels[i].printVertices(colors[i]);
+	}
+
+	for (Voxel vo : voxels) {
+		outFile << vo.printPlanes("255 0 0");
+	}
+
+	outFile.close();
 	return true;
 }
 

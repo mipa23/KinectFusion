@@ -11,71 +11,40 @@
 #include "SurfacePoseEstimation.h"
 #include "Volume.h"
 #include "SurfacePrediction.h"
-#include "SurfacePredictionCuda.h"
-#include "SurfaceReconstructionCuda.h"
 #include "SurfaceReconstruction.h"
 #include "Ray.h"
-#include "SurfacePoseEstimationCuda.h"
+#include "CudaWrapper.h"
 
-#define WRITE_MESH 0
-#define WRITE_NORMAL_MAP 0
-#define WRITE_MESH_WITH_CAMERA 0
-#define WRITE_MARCHING_CUBES 0
+#define WRITE_MESH 1
+#define WRITE_MESH_WITH_CAMERA 1
+#define WRITE_MARCHING_CUBES 1
 #define WRITE_TSDF 0
 
-#define DATASET_FREIBURG1_XYZ 0
-#define DATASET_FREIBURG2_XYZ 1
+#define DATASET_FREIBURG1_XYZ 1
+#define DATASET_FREIBURG2_XYZ 0
 
+SurfaceReconstruction fusion;
 VirtualSensor sensor;
 
-bool process_frame(SurfacePoseEstimation* optimizer, CameraParametersPyramid cameraParams, size_t frame_cnt, std::shared_ptr<SurfaceMeasurement> firstFrame, std::shared_ptr<SurfaceMeasurement> currentFrame, 
-    std::shared_ptr<Volume> volume, const Config& config)
+bool process_frame(SurfacePoseEstimation* optimizer, CameraParametersPyramid cameraParams, size_t frame_cnt, std::shared_ptr<SurfaceMeasurement> firstFrame, std::shared_ptr<SurfaceMeasurement> currentFrame, std::shared_ptr<Volume> volume, const Config& config)
 {
     Eigen::Matrix4d estimated_pose = firstFrame->getGlobalPose();
     currentFrame->setGlobalPose(estimated_pose);
 
-    // STEP 2: Surface Pose Estimation
-    std::cout << "Init: Surface Pose Estimation..." << std::endl;
-    clock_t begin_icp = clock();
+    // STEP 1: Surface Pose Estimation
+    std::cout << "Init: ICP..." << std::endl;
     optimizer->EstimateTransform(currentFrame, firstFrame, estimated_pose);
-    clock_t end_icp = clock();
-    double deltaTime_icp = double(end_icp - begin_icp) / CLOCKS_PER_SEC;
 
-    std::cout << "Surface Pose Estimation: " << deltaTime_icp << " seconds." << std::endl;
+    // STEP 2: Surface Reconstruction
+    std::cout << "Init: Fusion..." << std::endl;
+    if (!fusion.reconstructSurface(cameraParams, currentFrame, volume, config.m_truncationDistance, config.m_numLevels)) {
+        throw "Surface reconstruction failed";
+    };
 
-    if (USE_CUDA) {
-        // STEP 3: Surface Reconstruction
-        std::cout << "Init: Fusion Cuda..." << std::endl;
-        volume->CopyToCuda();
-
-        SurfaceReconstructionCuda::reconstructSurface(cameraParams, currentFrame, volume, config.m_truncationDistance, config.m_num_levels);
-        volume->CopyFromCuda();
-
-        // STEP 4: Surface Prediction
-        std::cout << "Init: Raycast Cuda..." << std::endl;
-        Cuda::SurfacePrediction::surfacePrediction(cameraParams, currentFrame, volume, (float)config.m_truncationDistance, config.m_num_levels);
-    }
-    else {
-        // STEP 3: Surface Reconstruction
-        std::cout << "Init: Surface Reconstruction..." << std::endl;
-        clock_t begin_fusion = clock();
-        SurfaceReconstruction::reconstructSurface(cameraParams, currentFrame, volume, config.m_truncationDistance, config.m_num_levels);
-        clock_t end_fusion = clock();
-        double deltaTime_fusion = double(end_fusion - begin_fusion) / CLOCKS_PER_SEC;
-
-        std::cout << "Surface Reconstruction: " << deltaTime_fusion << " seconds." << std::endl;
-
-        // STEP 4: Surface Prediction
-        std::cout << "Init: Surface Prediction..." << std::endl;
-        clock_t begin_raycast = clock();
-        SurfacePrediction::surfacePrediction(cameraParams, currentFrame, volume, config.m_truncationDistance, config.m_num_levels);
-        clock_t end_raycast = clock();
-        double deltaTime_raycast = double(end_raycast - begin_raycast) / CLOCKS_PER_SEC;
-
-        std::cout << "Surface Prediction: " << deltaTime_raycast << " seconds." << std::endl;
-    }
+    // STEP 3: Surface Prediction
+    std::cout << "Init: Raycast..." << std::endl;
+    SurfacePrediction::surfacePrediction(cameraParams, currentFrame, volume, config.m_truncationDistance, config.m_numLevels);
     std::cout << "Done!" << std::endl;
-
     return true;
 }
 
@@ -101,13 +70,6 @@ int main() {
     }
 
     /*
-     * Performance Measure
-     */
-
-    int total_number_frames = 0;
-    double deltaTime_pipeline_total = 0.0;
-
-    /*
      * Configuration Stuff
      */
     Eigen::Vector3d volumeRange(5.0, 5.0, 5.0);
@@ -116,7 +78,7 @@ int main() {
 
     const auto volumeOrigin = Eigen::Vector3d(-volumeRange.x() / 2, -volumeRange.y() / 2, 0.5);
 
-    Config config(0.1, 0.5, 0.06, volumeOrigin, volumeSize.x(), volumeSize.y(), volumeSize.z(), voxelSize, 1500.0f);
+    Config config(0.1, 0.5, 0.06, volumeOrigin, volumeSize.x(), volumeSize.y(), volumeSize.z(), voxelSize);
 
     //print Configuration to File
     config.printToFile("config");
@@ -155,9 +117,9 @@ int main() {
     optimizer->SetNrIterations(10);
     optimizer->LogCeresUpdates(false, false);
 
-    std::shared_ptr<SurfaceMeasurement> firstFrame = std::make_shared<SurfaceMeasurement>(SurfaceMeasurement(sensor, cameraParams, depthMap, colors, depthIntrinsics, colIntrinsics, 
-        d2cExtrinsics, depthWidth, depthHeight, config.m_num_levels, config.m_depth_cutoff));
-    
+    std::shared_ptr<SurfaceMeasurement> firstFrame = std::make_shared<SurfaceMeasurement>(SurfaceMeasurement(sensor, cameraParams, depthMap, colors, depthIntrinsics, colIntrinsics, d2cExtrinsics, depthWidth, depthHeight, config.m_numLevels));
+    Matrix4d currentCameraToWorld = Matrix4d::Identity();
+
     if (WRITE_MESH)
     {
         if (WRITE_MESH_WITH_CAMERA)
@@ -171,24 +133,14 @@ int main() {
     }
 
     int i = 1;
-    const int iMax = 50;
+    const int iMax = 20;
 
     while (i <= iMax && sensor.processNextFrame()) {
 
-        clock_t begin_pipeline = clock();
-
         const float* depthMap = &sensor.getDepth()[0];
         BYTE* colors = &sensor.getColorRGBX()[0];
-        // STEP 1: Surface Measurement
-        std::cout << "Init: Surface Measurement..." << std::endl;
-        clock_t begin_surface_measurement = clock();
-        std::shared_ptr<SurfaceMeasurement> currentFrame = std::make_shared<SurfaceMeasurement>(SurfaceMeasurement(sensor, cameraParams, depthMap, colors, depthIntrinsics, colIntrinsics, 
-            d2cExtrinsics, depthWidth, depthHeight, config.m_num_levels, config.m_depth_cutoff));
-        clock_t end_surface_measurement = clock();
-        double deltaTime_surface_measurement = double(end_surface_measurement - begin_surface_measurement) / CLOCKS_PER_SEC;
+        std::shared_ptr<SurfaceMeasurement> currentFrame = std::make_shared<SurfaceMeasurement>(SurfaceMeasurement(sensor, cameraParams, depthMap, colors, depthIntrinsics, colIntrinsics, d2cExtrinsics, depthWidth, depthHeight, config.m_numLevels));
 
-        std::cout << "Surface Measurement: " << deltaTime_surface_measurement << " seconds." << std::endl;
-        
         process_frame(optimizer, cameraParams, i, firstFrame, currentFrame, volume, config);
 
         if ((i - 1) % 5 == 0) {
@@ -197,10 +149,6 @@ int main() {
             {
                 std::stringstream filename_mesh;
                 filename_mesh << "frame" << i << ".off";
-
-                if (WRITE_NORMAL_MAP) {
-                    Mesh::writeNormalMap(currentFrame, std::string("normalmap_") + std::to_string(i));
-                }
 
                 if (WRITE_MESH_WITH_CAMERA)
                 {
@@ -226,17 +174,6 @@ int main() {
         }
 
         i++;
-
-        clock_t end_pipeline = clock();
-        double deltaTime_pipeline = double(end_pipeline - begin_pipeline) / CLOCKS_PER_SEC;
-
-        std::cout << "Pipeline " << deltaTime_pipeline << " seconds." << std::endl;
-
-        total_number_frames += 1;
-        deltaTime_pipeline_total += deltaTime_pipeline;
-
-        std::cout << "Pipeline Frames: " << total_number_frames << " " << std::endl;
-        std::cout << "Pipeline Total time: " << deltaTime_pipeline_total << " seconds." << std::endl;
     }
 }
 

@@ -4,11 +4,13 @@
 #include <SurfaceMeasurement.h>
 #include <memory>
 #include "VirtualSensor.h"
-
-namespace SurfaceReconstruction {
+class SurfaceReconstruction {
+public:
     //THIS method expects frame to hold all camera paramerters as well as the estimated pose --> TODO: check if those values are set or redefine method parameters
 
-     void reconstructSurface(CameraParametersPyramid cameraParams, std::shared_ptr<SurfaceMeasurement>& currentFrame, const std::shared_ptr<Volume>& volume, double truncationDistance, int numLevels);
+    bool reconstructSurface(CameraParametersPyramid cameraParams, std::shared_ptr<SurfaceMeasurement>& currentFrame, const std::shared_ptr<Volume>& volume, double truncationDistance, int numLevels);
+
+private:
 
     /*!
          * The original implementation actually takes a raw depth Value, as we already calculated the camereSpacePoints

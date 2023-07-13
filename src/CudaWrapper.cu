@@ -1,4 +1,4 @@
-#include "SurfacePoseEstimationCuda.h"
+#include "CudaWrapper.h"
 
 namespace Cuda
 {
